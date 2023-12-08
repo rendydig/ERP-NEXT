@@ -1,0 +1,32 @@
+{
+ "chart_name": "Test DocType Chart",
+ "chart_type": "Report",
+ "creation": "2023-12-06 13:13:50.305446",
+ "docstatus": 0,
+ "doctype": "Dashboard Chart",
+ "dynamic_filters_json": "{}",
+ "filters_json": "{}",
+ "group_by_type": "Count",
+ "idx": 0,
+ "is_public": 1,
+ "is_standard": 1,
+ "modified": "2023-12-06 13:13:50.305446",
+ "modified_by": "Administrator",
+ "module": "Library Management",
+ "name": "Test DocType Chart",
+ "number_of_groups": 0,
+ "owner": "Administrator",
+ "report_name": "Test DocType Report",
+ "roles": [],
+ "time_interval": "Yearly",
+ "timeseries": 0,
+ "timespan": "Last Year",
+ "type": "Line",
+ "use_report_chart": 0,
+ "x_field": "date",
+ "y_axis": [
+  {
+   "y_field": "quantity"
+  }
+ ]
+}
