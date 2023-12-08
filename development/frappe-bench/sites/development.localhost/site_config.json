@@ -1,0 +1,7 @@
+{
+ "db_name": "frappedevdb",
+ "db_password": "eE9pU7ZBu4ChW2GH",
+ "db_type": "mariadb",
+ "developer_mode": 1,
+ "server_script_enabled": true
+}
