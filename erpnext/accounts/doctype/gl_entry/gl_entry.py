@@ -452,3 +452,20 @@ def rename_temporarily_named_docs(doctype):
 			(newname, oldname),
 			auto_commit=True,
 		)
+
+
+@frappe.whitelist()
+def get_net_profit():
+	total_income = flt(
+			frappe.db.sql(
+				"SELECT sum(`total`) FROM `tabSales Order` WHERE `status` = 'Completed'")[0][0]
+		)
+
+	total_expense = flt(
+			frappe.db.sql(
+				"SELECT sum(`debit`) FROM `tabGL Entry` WHERE `account` = 'Cost of Goods Sold - C'")[0][0]
+		)
+
+	net_profit = total_income - total_expense
+	
+	return {"value": net_profit, "fieldtype": "Currency"}
