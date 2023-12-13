@@ -458,12 +458,13 @@ def rename_temporarily_named_docs(doctype):
 def get_net_profit():
 	total_income = flt(
 			frappe.db.sql(
-				"SELECT sum(`total`) FROM `tabSales Order` WHERE `status` = 'Completed'")[0][0]
+				#"SELECT sum(`total`) FROM `tabSales Order` WHERE `status` = 'Completed'")[0][0]
+				"SELECT sum(`credit`) FROM `tabGL Entry` WHERE `account` LIKE 'Sales%'")[0][0]
 		)
 
 	total_expense = flt(
 			frappe.db.sql(
-				"SELECT sum(`debit`) FROM `tabGL Entry` WHERE `account` = 'Cost of Goods Sold - C'")[0][0]
+				"SELECT sum(`debit`) FROM `tabGL Entry` WHERE `account` LIKE 'Cost of Goods Sold%'")[0][0]
 		)
 
 	net_profit = total_income - total_expense
