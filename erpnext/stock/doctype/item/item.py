@@ -120,6 +120,9 @@ class Item(Document):
 		if not self.is_new():
 			self.old_item_group = frappe.db.get_value(self.doctype, self.name, "item_group")
 
+	def before_save(self):
+		self.woocommerce_id = self.woocommerce_id_virtual
+
 	def on_update(self):
 		invalidate_cache_for_item(self)
 		self.update_variants()

@@ -59,11 +59,22 @@ def _order(*args, **kwargs):
 		raw_billing_data = order.get("billing")
 		raw_shipping_data = order.get("shipping")
 		customer_name = raw_billing_data.get("first_name") + " " + raw_billing_data.get("last_name")
+		
+		#customer
 		link_customer_and_address(raw_billing_data, raw_shipping_data, customer_name)
+		
+		#order
 		link_items(order.get("line_items"), woocommerce_settings, sys_lang)
-		create_sales_order(order, woocommerce_settings, customer_name, sys_lang)
+		sales_order = create_sales_order(order, woocommerce_settings, customer_name, sys_lang)
+
+		#payment
+		date_paid = order.get("date_paid")
+		if date_paid is not None and date_paid != "":
+			sales_invoice = create_sales_invoice(sales_order, woocommerce_settings, customer_name, sys_lang)
+			create_payment(sales_order, sales_invoice, woocommerce_settings, customer_name, sys_lang)
 
 
+#region customer and address
 def link_customer_and_address(raw_billing_data, raw_shipping_data, customer_name):
 	customer_woo_com_email = raw_billing_data.get("email")
 	customer_exists = frappe.get_value("Customer", {"woocommerce_email": customer_woo_com_email})
@@ -81,7 +92,9 @@ def link_customer_and_address(raw_billing_data, raw_shipping_data, customer_name
 	customer.save()
 
 	if customer_exists:
-		frappe.rename_doc("Customer", old_name, customer_name)
+		if customer_name != old_name:
+			frappe.rename_doc("Customer", old_name, customer_name)
+		
 		for address_type in (
 			"Billing",
 			"Shipping",
@@ -101,7 +114,6 @@ def link_customer_and_address(raw_billing_data, raw_shipping_data, customer_name
 		create_address(raw_billing_data, customer, "Billing")
 		create_address(raw_shipping_data, customer, "Shipping")
 		create_contact(raw_billing_data, customer)
-
 
 def create_contact(data, customer):
 	email = data.get("email", None)
@@ -127,7 +139,6 @@ def create_contact(data, customer):
 	contact.flags.ignore_mandatory = True
 	contact.save()
 
-
 def create_address(raw_data, customer, address_type):
 	address = frappe.new_doc("Address")
 
@@ -146,7 +157,6 @@ def create_address(raw_data, customer, address_type):
 	address.flags.ignore_mandatory = True
 	address.save()
 
-
 def rename_address(address, customer):
 	old_address_title = address.name
 	new_address_title = customer.name + "-" + address.address_type
@@ -154,8 +164,9 @@ def rename_address(address, customer):
 	address.save()
 
 	frappe.rename_doc("Address", old_address_title, new_address_title)
+#endregion
 
-
+#region items
 def link_items(items_list, woocommerce_settings, sys_lang):
 	for item_data in items_list:
 		item_woo_com_id = cstr(item_data.get("product_id"))
@@ -171,8 +182,9 @@ def link_items(items_list, woocommerce_settings, sys_lang):
 			item.woocommerce_id = item_woo_com_id
 			item.flags.ignore_mandatory = True
 			item.save()
+#endregion
 
-
+#region sales order
 def create_sales_order(order, woocommerce_settings, customer_name, sys_lang):
 	new_sales_order = frappe.new_doc("Sales Order")
 	new_sales_order.customer = customer_name
@@ -194,6 +206,7 @@ def create_sales_order(order, woocommerce_settings, customer_name, sys_lang):
 
 	frappe.db.commit()
 
+	return new_sales_order
 
 def set_items_in_sales_order(new_sales_order, woocommerce_settings, order, sys_lang):
 	company_abbr = frappe.db.get_value("Company", woocommerce_settings.company, "abbr")
@@ -238,7 +251,6 @@ def set_items_in_sales_order(new_sales_order, woocommerce_settings, order, sys_l
 		woocommerce_settings.f_n_f_account,
 	)
 
-
 def add_tax_details(sales_order, price, desc, tax_account_head):
 	sales_order.append(
 		"taxes",
@@ -249,3 +261,43 @@ def add_tax_details(sales_order, price, desc, tax_account_head):
 			"description": desc,
 		},
 	)
+#endregion
+
+#region billing and payment
+def create_sales_invoice(sales_order, woocommerce_settings, customer_name, sys_lang):
+	new_sales_invoice = frappe.new_doc("Sales Invoice")
+	new_sales_invoice.title = customer_name
+	new_sales_invoice.naming_series = "SI-WOO-"
+	new_sales_invoice.customer = customer_name
+	new_sales_invoice.customer_name = customer_name
+	new_sales_invoice.company = woocommerce_settings.company
+
+	set_items_in_sales_invoice(sales_order, new_sales_invoice, woocommerce_settings, sys_lang)
+
+	new_sales_invoice.flags.ignore_mandatory = False
+	new_sales_invoice.insert()
+	new_sales_invoice.submit()
+	
+	return new_sales_invoice
+
+def set_items_in_sales_invoice(sales_order, new_sales_invoice, woocommerce_settings, sys_lang):
+	company_abbr = frappe.db.get_value("Company", woocommerce_settings.company, "abbr")
+	default_account = _("Sales - {0}", sys_lang).format(company_abbr)
+
+	for item in sales_order.items:
+		new_sales_invoice.append(
+			"items", 
+			{
+				"item_code": item.item_code,
+				"item_name": item.item_name,
+				"uom": item.uom,
+				"qty": item.qty,
+				"rate": item.rate,
+				"income_account": default_account,
+				"sales_order": sales_order.name
+			},
+		)
+
+def create_payment(sales_order, sales_invoice, woocommerce_settings, customer_name, syslang):
+	return 
+#endregion
