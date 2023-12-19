@@ -14,6 +14,7 @@
   "api_consumer_secret",
   "sb_accounting_details",
   "tax_account",
+  "payment_account",
   "column_break_10",
   "f_n_f_account",
   "defaults_section",
@@ -27,6 +28,7 @@
   "company",
   "delivery_after_days",
   "uom",
+  "automation_section",
   "is_auto_generate_payment_if_paid",
   "is_auto_reduce_stock_if_paid",
   "endpoints",
@@ -119,9 +121,9 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "The fallback series is \"SO-WOO-\".",
+   "description": "The fallback series is \"SAL-ORD-WOO-\".",
    "fieldname": "sales_order_series",
-   "fieldtype": "Select",
+   "fieldtype": "Data",
    "label": "Sales Order Series"
   },
   {
@@ -175,21 +177,33 @@
    "label": "Delivery Note Series"
   },
   {
-   "default": "0",
+   "default": "1",
    "fieldname": "is_auto_generate_payment_if_paid",
    "fieldtype": "Check",
-   "label": "Auto Generate Payment If Payment is \"Paid\""
+   "label": "Auto generate invoice and payment if transaction is \"paid\""
   },
   {
    "default": "0",
    "fieldname": "is_auto_reduce_stock_if_paid",
    "fieldtype": "Check",
-   "label": "Auto Reduces Stock If Payment Is \"Paid\""
+   "label": "Auto generate delivery note and reduce stock if transaction is \"paid\""
+  },
+  {
+   "fieldname": "automation_section",
+   "fieldtype": "Section Break",
+   "label": "Automation"
+  },
+  {
+   "fieldname": "payment_account",
+   "fieldtype": "Link",
+   "label": "Payment Account",
+   "options": "Account",
+   "reqd": 1
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2023-12-19 10:29:40.396135",
+ "modified": "2023-12-19 16:48:42.671900",
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "Woocommerce Settings",

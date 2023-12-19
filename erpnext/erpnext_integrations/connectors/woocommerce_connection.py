@@ -6,6 +6,7 @@ import json
 import frappe
 from frappe import _
 from frappe.utils import cstr
+from datetime import datetime
 
 
 def verify_request():
@@ -70,9 +71,11 @@ def _order(*args, **kwargs):
 		#payment
 		date_paid = order.get("date_paid")
 		if date_paid is not None and date_paid != "":
-			new_sales_invoice = create_sales_invoice(new_sales_order, woocommerce_settings, customer_name, sys_lang)
-			create_payment(new_sales_invoice, woocommerce_settings, customer_name, sys_lang)
-			create_delivery_note(new_sales_order, woocommerce_settings, customer_name, sys_lang)
+			if woocommerce_settings.is_auto_generate_payment_if_paid:
+				new_sales_invoice = create_sales_invoice(new_sales_order, woocommerce_settings, customer_name, sys_lang)
+				create_payment(order, new_sales_invoice, woocommerce_settings, customer_name, sys_lang)
+			if woocommerce_settings.is_auto_reduce_stock_if_paid:
+				create_delivery_note(new_sales_order, woocommerce_settings, customer_name, sys_lang)
 
 #region customer and address
 def link_customer_and_address(raw_billing_data, raw_shipping_data, customer_name):
@@ -190,7 +193,7 @@ def create_sales_order(order, woocommerce_settings, customer_name, sys_lang):
 	new_sales_order.customer = customer_name
 
 	new_sales_order.po_no = new_sales_order.woocommerce_id = order.get("id")
-	new_sales_order.naming_series = woocommerce_settings.sales_order_series or "SO-WOO-"
+	new_sales_order.naming_series = woocommerce_settings.sales_order_series or "SAL-ORD-WOO-"
 
 	created_date = order.get("date_created").split("T")
 	new_sales_order.transaction_date = created_date[0]
@@ -267,7 +270,7 @@ def add_tax_details(sales_order, price, desc, tax_account_head):
 def create_sales_invoice(sales_order, woocommerce_settings, customer_name, sys_lang):
 	new_sales_invoice = frappe.new_doc("Sales Invoice")
 	new_sales_invoice.title = customer_name
-	new_sales_invoice.naming_series = "ACC_SINV-WOO-"
+	new_sales_invoice.naming_series = woocommerce_settings.sales_invoice_series or "ACC_SINV-WOO-"
 	new_sales_invoice.customer = customer_name
 	new_sales_invoice.customer_name = customer_name
 	new_sales_invoice.company = woocommerce_settings.company
@@ -299,18 +302,21 @@ def set_items_in_sales_invoice(sales_order, new_sales_invoice, woocommerce_setti
 			},
 		)
 
-def create_payment(sales_invoice, woocommerce_settings, customer_name, sys_lang):
+def create_payment(order, sales_invoice, woocommerce_settings, customer_name, sys_lang):
 	company_abbr = frappe.db.get_value("Company", woocommerce_settings.company, "abbr")
 
 	new_payment = frappe.new_doc("Payment Entry")
-	new_payment.naming_series = "ACC-PAY-WOO-"
+	new_payment.naming_series = woocommerce_settings.payment_series or "ACC-PAY-WOO-"
 	new_payment.title = customer_name
 	new_payment.payment_type = "Receive"
 	new_payment.party_type = "Customer"
 	new_payment.party = customer_name
 	new_payment.party_name = customer_name
 	new_payment.paid_from = _("Debtors - {0}", sys_lang).format(company_abbr)
-	new_payment.paid_to = _("Cash - {0}", sys_lang).format(company_abbr)
+	new_payment.paid_to = woocommerce_settings.payment_account
+	date_paid = order.get("date_paid")
+	new_payment.reference_no = date_paid
+	new_payment.reference_date = datetime.strptime(date_paid, "%Y-%m-%dT%H:%M:%S")
 	new_payment.paid_amount = sales_invoice.base_grand_total
 	new_payment.received_amount = sales_invoice.base_grand_total
 	new_payment.append(
@@ -332,7 +338,7 @@ def create_payment(sales_invoice, woocommerce_settings, customer_name, sys_lang)
 def create_delivery_note(sales_order, woocommerce_settings, customer_name, sys_lang):
 	new_delivery_note = frappe.new_doc("Delivery Note")
 	new_delivery_note.title = customer_name
-	new_delivery_note.naming_series = "MAT-DN-WOO-"
+	new_delivery_note.naming_series = woocommerce_settings.delivery_note_series or "MAT-DN-WOO-"
 	new_delivery_note.customer = customer_name
 	new_delivery_note.company = sales_order.company
 	new_delivery_note.currency = sales_order.currency
@@ -345,7 +351,14 @@ def create_delivery_note(sales_order, woocommerce_settings, customer_name, sys_l
 
 	new_delivery_note.flags.ignore_mandatory = False
 	new_delivery_note.insert()
-	new_delivery_note.submit()
+
+	try:
+		new_delivery_note.submit()
+	except Exception:
+		error_message = (frappe.get_traceback() + "\n\n Request Data: \n" + json.loads(frappe.request.data).__str__())
+		frappe.log_error("WooCommerce Error", error_message)
+		new_delivery_note.cancel()
+		
 	return new_delivery_note
 
 def set_items_in_delivery_note(sales_order, new_delivery_note, woocommerce_settings, customer_name, sys_lang):	
