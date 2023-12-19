@@ -1,4 +1,5 @@
 {
+ "actions": [],
  "creation": "2018-02-12 15:10:05.495713",
  "doctype": "DocType",
  "editable_grid": 1,
@@ -19,10 +20,15 @@
   "creation_user",
   "warehouse",
   "sales_order_series",
+  "sales_invoice_series",
+  "payment_series",
+  "delivery_note_series",
   "column_break_14",
   "company",
   "delivery_after_days",
   "uom",
+  "is_auto_generate_payment_if_paid",
+  "is_auto_reduce_stock_if_paid",
   "endpoints",
   "endpoint"
  ],
@@ -149,10 +155,41 @@
    "fieldname": "delivery_after_days",
    "fieldtype": "Int",
    "label": "Delivery After (Days)"
+  },
+  {
+   "description": "The fallback series is \"ACC_SINV-WOO-\".",
+   "fieldname": "sales_invoice_series",
+   "fieldtype": "Data",
+   "label": "Sales Invoice Series"
+  },
+  {
+   "description": "The fallback series is \"ACC-PAY-WOO-\".",
+   "fieldname": "payment_series",
+   "fieldtype": "Data",
+   "label": "Payment Series"
+  },
+  {
+   "description": "The fallback series is \"MAT-DN-WOO-\".",
+   "fieldname": "delivery_note_series",
+   "fieldtype": "Data",
+   "label": "Delivery Note Series"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_auto_generate_payment_if_paid",
+   "fieldtype": "Check",
+   "label": "Auto Generate Payment If Payment is \"Paid\""
+  },
+  {
+   "default": "0",
+   "fieldname": "is_auto_reduce_stock_if_paid",
+   "fieldtype": "Check",
+   "label": "Auto Reduces Stock If Payment Is \"Paid\""
   }
  ],
  "issingle": 1,
- "modified": "2019-11-04 00:45:21.232096",
+ "links": [],
+ "modified": "2023-12-19 10:29:40.396135",
  "modified_by": "Administrator",
  "module": "ERPNext Integrations",
  "name": "Woocommerce Settings",
@@ -171,5 +208,6 @@
  "quick_entry": 1,
  "sort_field": "modified",
  "sort_order": "DESC",
+ "states": [],
  "track_changes": 1
 }

@@ -65,14 +65,14 @@ def _order(*args, **kwargs):
 		
 		#order
 		link_items(order.get("line_items"), woocommerce_settings, sys_lang)
-		sales_order = create_sales_order(order, woocommerce_settings, customer_name, sys_lang)
+		new_sales_order = create_sales_order(order, woocommerce_settings, customer_name, sys_lang)
 
 		#payment
 		date_paid = order.get("date_paid")
 		if date_paid is not None and date_paid != "":
-			sales_invoice = create_sales_invoice(sales_order, woocommerce_settings, customer_name, sys_lang)
-			create_payment(sales_order, sales_invoice, woocommerce_settings, customer_name, sys_lang)
-
+			new_sales_invoice = create_sales_invoice(new_sales_order, woocommerce_settings, customer_name, sys_lang)
+			create_payment(new_sales_invoice, woocommerce_settings, customer_name, sys_lang)
+			create_delivery_note(new_sales_order, woocommerce_settings, customer_name, sys_lang)
 
 #region customer and address
 def link_customer_and_address(raw_billing_data, raw_shipping_data, customer_name):
@@ -267,17 +267,17 @@ def add_tax_details(sales_order, price, desc, tax_account_head):
 def create_sales_invoice(sales_order, woocommerce_settings, customer_name, sys_lang):
 	new_sales_invoice = frappe.new_doc("Sales Invoice")
 	new_sales_invoice.title = customer_name
-	new_sales_invoice.naming_series = "SI-WOO-"
+	new_sales_invoice.naming_series = "ACC_SINV-WOO-"
 	new_sales_invoice.customer = customer_name
 	new_sales_invoice.customer_name = customer_name
 	new_sales_invoice.company = woocommerce_settings.company
+	
 
 	set_items_in_sales_invoice(sales_order, new_sales_invoice, woocommerce_settings, sys_lang)
 
 	new_sales_invoice.flags.ignore_mandatory = False
 	new_sales_invoice.insert()
 	new_sales_invoice.submit()
-	
 	return new_sales_invoice
 
 def set_items_in_sales_invoice(sales_order, new_sales_invoice, woocommerce_settings, sys_lang):
@@ -294,10 +294,73 @@ def set_items_in_sales_invoice(sales_order, new_sales_invoice, woocommerce_setti
 				"qty": item.qty,
 				"rate": item.rate,
 				"income_account": default_account,
-				"sales_order": sales_order.name
+				"sales_order": sales_order.name,
+				"so_detail": item.name
 			},
 		)
 
-def create_payment(sales_order, sales_invoice, woocommerce_settings, customer_name, syslang):
-	return 
+def create_payment(sales_invoice, woocommerce_settings, customer_name, sys_lang):
+	company_abbr = frappe.db.get_value("Company", woocommerce_settings.company, "abbr")
+
+	new_payment = frappe.new_doc("Payment Entry")
+	new_payment.naming_series = "ACC-PAY-WOO-"
+	new_payment.title = customer_name
+	new_payment.payment_type = "Receive"
+	new_payment.party_type = "Customer"
+	new_payment.party = customer_name
+	new_payment.party_name = customer_name
+	new_payment.paid_from = _("Debtors - {0}", sys_lang).format(company_abbr)
+	new_payment.paid_to = _("Cash - {0}", sys_lang).format(company_abbr)
+	new_payment.paid_amount = sales_invoice.base_grand_total
+	new_payment.received_amount = sales_invoice.base_grand_total
+	new_payment.append(
+			"references", 
+			{
+				"reference_doctype": "Sales Invoice",
+				"reference_name": sales_invoice.name,
+				"total_amount": sales_invoice.base_grand_total,
+				"outstanding_amount": 0,
+				"allocated_amount": sales_invoice.base_grand_total,
+			},
+		)
+	new_payment.flags.ignore_mandatory = False
+	new_payment.insert()
+	new_payment.submit()
+#endregion
+	
+#region delivery note
+def create_delivery_note(sales_order, woocommerce_settings, customer_name, sys_lang):
+	new_delivery_note = frappe.new_doc("Delivery Note")
+	new_delivery_note.title = customer_name
+	new_delivery_note.naming_series = "MAT-DN-WOO-"
+	new_delivery_note.customer = customer_name
+	new_delivery_note.company = sales_order.company
+	new_delivery_note.currency = sales_order.currency
+	new_delivery_note.conversion_rate = sales_order.conversion_rate
+	new_delivery_note.selling_price_list = sales_order.selling_price_list
+	new_delivery_note.price_list_currency = sales_order.price_list_currency
+	new_delivery_note.plc_conversion_rate = sales_order.plc_conversion_rate
+
+	set_items_in_delivery_note(sales_order, new_delivery_note, woocommerce_settings, customer_name, sys_lang)
+
+	new_delivery_note.flags.ignore_mandatory = False
+	new_delivery_note.insert()
+	new_delivery_note.submit()
+	return new_delivery_note
+
+def set_items_in_delivery_note(sales_order, new_delivery_note, woocommerce_settings, customer_name, sys_lang):	
+	for item in sales_order.items:
+		new_delivery_note.append(
+			"items", 
+			{
+				"item_code": item.item_code,
+				"item_name": item.item_name,
+				"description": item.description,
+				"qty": item.qty,
+				"uom": item.uom,
+				"conversion_factor": item.conversion_factor,
+				"against_sales_order": sales_order.name,
+				"so_detail": item.name
+			},
+		)
 #endregion
