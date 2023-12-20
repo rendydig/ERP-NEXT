@@ -27,6 +27,7 @@ class WoocommerceSettings(Document):
 						fieldtype="Data",
 						read_only=1,
 						print_hide=1,
+						hidden=1,
 					),
 					("Customer", "Address"): dict(
 						fieldname="woocommerce_email",
