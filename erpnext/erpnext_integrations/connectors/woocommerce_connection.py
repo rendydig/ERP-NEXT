@@ -183,7 +183,8 @@ def link_items(items_list, woocommerce_settings, sys_lang):
 
 			item.item_name = item_data.get("name")
 			item.woocommerce_id = item_woo_com_id
-			item.flags.ignore_mandatory = True
+			item.woocommerce_id_virtual = item_woo_com_id
+			item.flags.ignore_mandatory = False
 			item.save()
 #endregion
 
